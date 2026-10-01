@@ -17,9 +17,9 @@ LABELLED = {"WS103", "WS102", "WS104", "WS105", "WS106", "WS107", "WS108", "WS10
             "WS101", "WS134", "WS132", "WS138", "WS125", "WS119", "WS123", "WS143"}
 
 # period colour ramps: prussian blue -> sage -> ochre -> terracotta -> oxblood
-TEMP_STOPS = [(15, "#2f4f6f"), (20, "#4f7a8a"), (25, "#8fae9a"), (29, "#c9c58f"), (33, "#e2c46b"),
+TEMP_STOPS = [(15, "#34597c"), (20, "#4f7a8a"), (25, "#8fae9a"), (29, "#c9c58f"), (33, "#e2c46b"),
               (36, "#d99a45"), (39, "#c0661d"), (42, "#a8431f"), (45, "#8e2a1e"), (48, "#5a1712")]
-ANOM_STOPS = [(-6, "#2f4f6f"), (-3, "#7f9fb0"), (0, "#efe6d2"), (2.5, "#e2c46b"), (4.5, "#c0661d"),
+ANOM_STOPS = [(-6, "#3f6a8f"), (-3, "#6f8fa6"), (0, "#4a4034"), (2.5, "#e2c46b"), (4.5, "#c0661d"),
               (6.5, "#8e2a1e"), (9, "#4f1410")]
 
 
@@ -55,7 +55,7 @@ def impact_colour(p):
         return "#a8431f"
     if p >= 0.3:
         return "#d9a441"
-    return "#ebe2cd"
+    return "#2a2219"
 
 
 def gradient_css(stops):
@@ -153,7 +153,7 @@ def legend(field):
     if field == "watch":
         return ('<div class="legend"><span class="sw"><i style="background:#a8431f"></i>Probable heatwave (≥60%)</span>'
                 '<span class="sw"><i style="background:#d9a441"></i>Heat watch (30–60%)</span>'
-                '<span class="sw"><i style="background:#ebe2cd;border:1px solid #bfae8b"></i>No alert</span>'
+                '<span class="sw"><i style="background:#2a2219;border:1px solid #54452f"></i>No alert</span>'
                 + _station_legend() + '</div>')
     stops = TEMP_STOPS if field == "tmax" else ANOM_STOPS
     label = "Tmax °C" if field == "tmax" else "Departure °C"

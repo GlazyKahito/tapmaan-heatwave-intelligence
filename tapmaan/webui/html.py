@@ -109,7 +109,7 @@ def page(title, body, active="/", mode_label="", mode="replay", description=""):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{e(title)} · {APP_NAME}</title>
 <meta name="description" content="{e(desc)}">
-<meta name="theme-color" content="#f3ead7">
+<meta name="theme-color" content="#16110d">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

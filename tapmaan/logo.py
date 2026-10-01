@@ -28,7 +28,7 @@ def logo_commands():
         ("create_oval", (cx - 46, cy - 46, cx + 46, cy + 46), {"fill": "#ffc845", "outline": ""}),
         # warning gauge around the sun (create_arc)
         ("create_arc", (cx - 104, cy - 104, cx + 104, cy + 104),
-         {"start": 20, "extent": 140, "style": "arc", "outline": "#e8352b", "width": 5}),
+         {"start": 40, "extent": 100, "style": "arc", "outline": "#e8352b", "width": 5}),
         # thermometer: tube, mercury, bulb
         ("create_rectangle", (cx - 9, cy - 44, cx + 9, cy + 30), {"fill": "#fff7e6", "outline": "#0b1020", "width": 2}),
         ("create_rectangle", (cx - 4, cy - 20, cx + 4, cy + 32), {"fill": "#e8352b", "outline": ""}),
@@ -48,7 +48,7 @@ def logo_commands():
         cmds.append(("create_line", tuple(pts), {"fill": colour, "width": 4, "smooth": True}))
 
     cmds += [
-        ("create_text", (360, 88), {"text": "TAPMAAN", "fill": "#ffffff", "font": ("Helvetica", 40, "bold")}),
+        ("create_text", (368, 88), {"text": "TAPMAAN", "fill": "#ffffff", "font": ("Helvetica", 34, "bold")}),
         ("create_text", (360, 128), {"text": "Heatwave Intelligence Grid", "fill": "#ffb347",
                                      "font": ("Helvetica", 15, "normal")}),
         ("create_line", (260, 150, 460, 150), {"fill": "#2a3450", "width": 2}),
@@ -58,10 +58,12 @@ def logo_commands():
     return cmds
 
 
-def draw_on(canvas, scale=1.0):
+def draw_on(canvas, scale=1.0, vintage=False):
     """Replay the commands on a real tkinter.Canvas."""
     for method, coords, options in logo_commands():
-        opts = dict(options)
+        if vintage and method == "create_rectangle" and options.get("fill") == "#0b1020":
+            continue
+        opts = _recolour(options, VINTAGE) if vintage else dict(options)
         if "font" in opts:
             family, size, weight = opts["font"]
             opts["font"] = (family, int(size * scale), weight)
@@ -78,10 +80,10 @@ def _svg_attrs(opts, shape=True):
     return attrs
 
 
-# The website prints the logo in vintage inks; the Tkinter console keeps the original night palette.
-VINTAGE = {"#0b1020": None, "#ff8c1a": "#c0661d", "#ffc845": "#d9a441", "#e8352b": "#8e2a1e",
-           "#fff7e6": "#f8f1e1", "#ffffff": "#2b2420", "#ffb347": "#a8431f", "#2a3450": "#bfae8b",
-           "#9aa4c0": "#7d7062"}
+# Dark-vintage palette used by the website and the desktop console.
+VINTAGE = {"#0b1020": None, "#ff8c1a": "#d9822b", "#ffc845": "#c9a24a", "#e8352b": "#cf5240",
+           "#fff7e6": "#eadfc6", "#ffffff": "#eadfc6", "#ffb347": "#c9a24a", "#2a3450": "#54452f",
+           "#9aa4c0": "#9d8d71"}
 
 
 def _recolour(options, palette):

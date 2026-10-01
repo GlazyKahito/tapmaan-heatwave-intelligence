@@ -28,12 +28,13 @@ from tapmaan.logo import HEIGHT, WIDTH, draw_on  # noqa: E402
 from tapmaan.stations_data import REGIONS  # noqa: E402
 from tapmaan.webui.mapsvg import anom_colour, impact_colour, temp_colour  # noqa: E402
 
-BG, PANEL, PANEL2, LINE = "#0a0f1c", "#121a2e", "#172038", "#222d48"
-INK, MUTED, ACCENT = "#e9edf7", "#95a0bd", "#ff8c1a"
+# vintage almanac palette, shared with the website
+BG, PANEL, PANEL2, LINE = "#16110d", "#1e1813", "#2a2219", "#372c22"
+INK, MUTED, ACCENT = "#eadfc6", "#9d8d71", "#d9822b"
 LEVEL = {k: v["colour"] for k, v in ALERT_META.items()}
 FONT = ("Segoe UI", 10)
-H1 = ("Segoe UI Semibold", 18)
-H2 = ("Segoe UI Semibold", 12)
+H1 = ("Georgia", 20)
+H2 = ("Georgia", 13)
 MONO = ("Consolas", 10)
 
 
@@ -81,11 +82,11 @@ class LandingScreen(Screen):
     def build(self):
         c = tk.Canvas(self, width=WIDTH, height=HEIGHT, bg=BG, highlightthickness=0)
         c.pack(pady=(40, 10))
-        draw_on(c)
+        draw_on(c, vintage=True)
         self.status = tk.Label(self, text="", bg=BG, fg=MUTED, font=MONO, justify="left")
         self.status.pack(pady=10)
         self.enter = tk.Button(self, text="ENTER OPERATIONS CONSOLE", command=lambda: self.app.show("watch"),
-                               bg=ACCENT, fg="#160a00", font=("Segoe UI Semibold", 12), relief="flat", padx=24, pady=8,
+                               bg=INK, fg=BG, font=("Segoe UI Semibold", 12), relief="flat", padx=24, pady=8,
                                state="disabled", cursor="hand2")
         self.enter.pack(pady=10)
         self.steps = ["Loading 50 stations across 7 IMD regions", "Reading 30-year ERA5 climatology",
@@ -138,7 +139,7 @@ class WatchScreen(Screen):
 
         body = tk.Frame(self, bg=BG)
         body.pack(fill="both", expand=True, padx=18, pady=6)
-        self.canvas = tk.Canvas(body, width=560, height=580, bg="#0b1324", highlightthickness=0)
+        self.canvas = tk.Canvas(body, width=560, height=580, bg=PANEL, highlightthickness=1, highlightbackground=MUTED)
         self.canvas.pack(side="left")
         side = tk.Frame(body, bg=BG)
         side.pack(side="left", fill="both", expand=True, padx=(14, 0))
@@ -194,8 +195,8 @@ class WatchScreen(Screen):
             st = row["station"]
             x, y = self.px(st["lat"], st["lon"])
             if (row.get("hotspot_z") or 0) >= 1.96:
-                c.create_oval(x - 9, y - 9, x + 9, y + 9, outline="white", dash=(2, 2))
-            dot = c.create_oval(x - 5, y - 5, x + 5, y + 5, fill=LEVEL[row["alert"]["level"]], outline="#0b1324", width=2)
+                c.create_oval(x - 9, y - 9, x + 9, y + 9, outline=INK, dash=(2, 2))
+            dot = c.create_oval(x - 5, y - 5, x + 5, y + 5, fill=LEVEL[row["alert"]["level"]], outline=PANEL, width=2)
             c.tag_bind(dot, "<Button-1>", lambda _e, sid=st["id"]: self.app.open_station(sid))
             c.tag_bind(dot, "<Enter>", lambda _e, r=row: self.tip.config(
                 text=f"{r['station']['city']} · {r['alert']['level']} · Tmax {r['obs']['tmax']:.1f} °C "
@@ -258,10 +259,10 @@ class StationScreen(Screen):
         ax.fill_between(xs_f, [today] + [f["lo"] for f in d["forecast"]], [today] + [f["hi"] for f in d["forecast"]],
                         color=ACCENT, alpha=.2, lw=0)
         ax.plot(xs_f, [today] + [f["tmax"] for f in d["forecast"]], color=ACCENT, lw=2, ls="--", marker="o", ms=3)
-        ax.plot(xs_h, d["history"]["tmax"], color="#f4c430", lw=2.2, marker="o", ms=3)
+        ax.plot(xs_h, d["history"]["tmax"], color=INK, lw=2.2, marker="o", ms=3)
         if d["future"]["tmax"]:
-            ax.plot(range(n, n + len(d["future"]["tmax"])), d["future"]["tmax"], "D", color="#2fbf71", ms=5)
-        ax.axhline(d["hw_threshold"], color="#e8352b", lw=1, alpha=.7)
+            ax.plot(range(n, n + len(d["future"]["tmax"])), d["future"]["tmax"], "D", color="#8fa86f", ms=5)
+        ax.axhline(d["hw_threshold"], color="#cf5240", lw=1, alpha=.7)
         ax.axvline(n - 1, color=MUTED, lw=.8, ls=":")
         ax.set_ylabel("Tmax (°C)")
         self.fig.tight_layout()
@@ -324,7 +325,7 @@ class AWSScreen(Screen):
         self.summary.pack(side="left", padx=10)
         self.log = tk.Text(self, bg=PANEL, fg=INK, font=MONO, borderwidth=0, padx=10, pady=10)
         self.log.pack(fill="both", expand=True, padx=18, pady=8)
-        for tag, colour in (("ok", "#8fe9b6"), ("invalid", "#ffb36b"), ("missing", "#ffd75e"), ("comm_failure", "#ff8f88")):
+        for tag, colour in (("ok", "#8fa86f"), ("invalid", "#d9822b"), ("missing", "#d4a93f"), ("comm_failure", "#cf5240")):
             self.log.tag_configure(tag, foreground=colour)
         self.q = queue.Queue()
 
@@ -371,7 +372,7 @@ class AnalyticsScreen(Screen):
             style_axes(self.fig, ax)
         leads = [r["lead"] for r in val["leads"]]
         w = .27
-        for k, (key, colour) in enumerate((("model", ACCENT), ("persistence", "#5b6b95"), ("climatology", "#2c3a5c"))):
+        for k, (key, colour) in enumerate((("model", ACCENT), ("persistence", "#7d6b52"), ("climatology", "#4a3d2e"))):
             ax1.bar([x + (k - 1) * w for x in leads], [r[key]["mae"] for r in val["leads"]], w, color=colour, label=key)
         ax1.set_title("Forecast error 2024 (MAE °C)", color=INK, fontsize=10)
         ax1.legend(facecolor=PANEL, labelcolor=MUTED, edgecolor=LINE, fontsize=8)
@@ -408,7 +409,7 @@ class OperationsConsole(tk.Tk):
 
         nav = tk.Frame(self, bg=PANEL, width=200)
         nav.pack(side="left", fill="y")
-        tk.Label(nav, text="TAPMAAN", bg=PANEL, fg=ACCENT, font=("Segoe UI Black", 16)).pack(pady=(18, 0))
+        tk.Label(nav, text="Tapmaan", bg=PANEL, fg=INK, font=("Georgia", 20)).pack(pady=(18, 0))
         tk.Label(nav, text="Heatwave Operations", bg=PANEL, fg=MUTED, font=FONT).pack(pady=(0, 18))
         for key, label in self.NAV:
             tk.Button(nav, text=label, command=lambda k=key: self.show(k), bg=PANEL, fg=INK, relief="flat",

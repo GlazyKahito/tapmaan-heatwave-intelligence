@@ -20,11 +20,11 @@ import pandas as pd  # noqa: E402
 import seaborn as sns  # noqa: E402
 
 # vintage almanac palette (matches public/css/app.css)
-INK, MUTED, GRID, PANEL = "#2b2420", "#7d7062", "#ddd0b4", "#f3ead7"
-ORANGE, RED, YELLOW, GREEN, BLUE, VIOLET = "#c0661d", "#8e2a1e", "#c4962a", "#5b7a4b", "#2f4f6f", "#6d4c6f"
-OCHRE, SEPIA, TAN = "#d9a441", "#4d433b", "#bfae8b"
-REGION_COLOURS = {"WH": "#2f4f6f", "NW": "#8e2a1e", "NC": "#c0661d", "NE": "#5b7a4b",
-                  "WC": "#4f8a8b", "EC": "#6d4c6f", "IP": "#b5892b"}
+INK, MUTED, GRID, PANEL = "#eadfc6", "#9d8d71", "#3a2f25", "#16110d"
+ORANGE, RED, YELLOW, GREEN, BLUE, VIOLET = "#d9822b", "#cf5240", "#d4a93f", "#8fa86f", "#7d9cbb", "#a98bb0"
+OCHRE, SEPIA, TAN = "#c9a24a", "#6f624f", "#7d6b52"
+REGION_COLOURS = {"WH": "#7d9cbb", "NW": "#cf5240", "NC": "#d9822b", "NE": "#8fa86f",
+                  "WC": "#6fb0a8", "EC": "#a98bb0", "IP": "#d4a93f"}
 STATUS_COLOURS = {"ok": GREEN, "invalid": ORANGE, "missing": OCHRE, "comm_failure": RED, "error": VIOLET}
 
 plt.rcParams.update({
@@ -118,7 +118,7 @@ def skill_mae_chart(val):
                         "Persistence": r["persistence"]["mae"], "Climatology": r["climatology"]["mae"]}
                        for r in val["leads"]]).set_index("Lead")
     fig, ax = plt.subplots(figsize=(6.4, 3.3))
-    df.plot.bar(ax=ax, color=[ORANGE, TAN, "#8c7d68"], width=.78, rot=0)
+    df.plot.bar(ax=ax, color=[ORANGE, TAN, "#4a3d2e"], width=.78, rot=0)
     for c in ax.containers[:1]:
         ax.bar_label(c, fmt="%.2f", fontsize=8, color=INK, padding=2)
     ax.set_ylabel("Mean absolute error (°C)")
@@ -157,7 +157,7 @@ def season_heatmap(report):
     df = pd.DataFrame(report["season_table"]).set_index("name").drop(columns="region")
     fig, ax = plt.subplots(figsize=(6.6, 3.6))
     vintage = matplotlib.colors.LinearSegmentedColormap.from_list(
-        "almanac", ["#4f7a8a", "#c9c58f", "#e2c46b", "#c0661d", "#8e2a1e"])
+        "almanac", ["#34597c", "#6f8f86", "#c9a24a", "#d9822b", "#a33a2c"])
     sns.heatmap(df, annot=True, fmt=".1f", cmap=vintage, linewidths=2, linecolor=PANEL,
                 cbar_kws={"label": "Mean Tmax (°C)", "shrink": .8}, ax=ax, annot_kws={"fontsize": 9})
     ax.grid(False)
