@@ -19,18 +19,20 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import seaborn as sns  # noqa: E402
 
-INK, MUTED, GRID, PANEL = "#e9edf7", "#95a0bd", "#222d48", "#0e1526"
-ORANGE, RED, YELLOW, GREEN, BLUE, VIOLET = "#ff8c1a", "#e8352b", "#f4c430", "#2fbf71", "#4c8dff", "#9b7bff"
-REGION_COLOURS = {"WH": "#7fb2ff", "NW": "#ff6a3d", "NC": "#ffb020", "NE": "#38d39f",
-                  "WC": "#3fc5f0", "EC": "#b38cff", "IP": "#f25f9c"}
-STATUS_COLOURS = {"ok": GREEN, "invalid": ORANGE, "missing": YELLOW, "comm_failure": RED, "error": VIOLET}
+# vintage almanac palette (matches public/css/app.css)
+INK, MUTED, GRID, PANEL = "#2b2420", "#7d7062", "#ddd0b4", "#f3ead7"
+ORANGE, RED, YELLOW, GREEN, BLUE, VIOLET = "#c0661d", "#8e2a1e", "#c4962a", "#5b7a4b", "#2f4f6f", "#6d4c6f"
+OCHRE, SEPIA, TAN = "#d9a441", "#4d433b", "#bfae8b"
+REGION_COLOURS = {"WH": "#2f4f6f", "NW": "#8e2a1e", "NC": "#c0661d", "NE": "#5b7a4b",
+                  "WC": "#4f8a8b", "EC": "#6d4c6f", "IP": "#b5892b"}
+STATUS_COLOURS = {"ok": GREEN, "invalid": ORANGE, "missing": OCHRE, "comm_failure": RED, "error": VIOLET}
 
 plt.rcParams.update({
-    "svg.fonttype": "none", "font.family": "sans-serif",
-    "font.sans-serif": ["Inter", "DejaVu Sans", "Arial"], "font.size": 10,
+    "svg.fonttype": "none", "font.family": "serif",
+    "font.serif": ["Source Serif 4", "Georgia", "DejaVu Serif"], "font.size": 10.5,
     "text.color": INK, "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": MUTED,
-    "axes.edgecolor": GRID, "axes.facecolor": "none", "figure.facecolor": "none",
-    "axes.grid": True, "grid.color": GRID, "grid.linestyle": (0, (2, 4)), "grid.linewidth": 0.8,
+    "axes.edgecolor": SEPIA, "axes.linewidth": 0.9, "axes.facecolor": "none", "figure.facecolor": "none",
+    "axes.grid": True, "grid.color": GRID, "grid.linestyle": (0, (1, 3)), "grid.linewidth": 0.9,
     "axes.spines.top": False, "axes.spines.right": False, "legend.frameon": False,
     "legend.labelcolor": MUTED, "axes.titlecolor": INK, "axes.titlesize": 11,
 })
@@ -69,15 +71,15 @@ def forecast_chart(detail):
     lo = [today] + [d["lo"] for d in fc]
     hi = [today] + [d["hi"] for d in fc]
     mean = [today] + [d["tmax"] for d in fc]
-    ax.fill_between(x_fc, lo, hi, color=ORANGE, alpha=.18, lw=0, label="80% forecast interval")
+    ax.fill_between(x_fc, lo, hi, color=OCHRE, alpha=.28, lw=0, label="80% forecast interval")
     ax.plot(x_fc, mean, color=ORANGE, lw=2.2, ls=(0, (5, 2)), marker="o", ms=4, label="AI forecast")
-    ax.plot(x_hist, hist["tmax"], color=YELLOW, lw=2.4, marker="o", ms=4, label="Observed Tmax")
+    ax.plot(x_hist, hist["tmax"], color=INK, lw=2.2, marker="o", ms=3.6, label="Observed Tmax")
 
     fut = detail["future"]
     if fut["tmax"]:
         xs = np.arange(len(hd), len(hd) + len(fut["tmax"]))
         if fut["kind"] == "observed":
-            ax.plot(xs, fut["tmax"], color=GREEN, lw=0, marker="D", ms=6, label="What actually happened")
+            ax.plot(xs, fut["tmax"], color=GREEN, lw=0, marker="D", ms=6, mec=PANEL, label="What actually happened")
         else:
             ax.plot(xs, fut["tmax"], color=VIOLET, lw=1.6, marker="s", ms=4, label="Reference model (Open-Meteo)")
 
@@ -101,7 +103,7 @@ def seasonal_cycle_chart(monthly_means, normal_today_month):
     df.columns = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     stats = df.agg(["mean", "min", "max"]).T
     fig, ax = plt.subplots(figsize=(7.2, 2.6))
-    colours = [ORANGE if i == normal_today_month else "#3a4a74" for i in range(12)]
+    colours = [ORANGE if i == normal_today_month else TAN for i in range(12)]
     ax.bar(stats.index, stats["mean"], color=colours, width=.66)
     ax.vlines(stats.index, stats["min"], stats["max"], color=INK, lw=1.2, alpha=.6)
     ax.set_ylim(max(0, stats["min"].min() - 4), stats["max"].max() + 2)
@@ -116,7 +118,7 @@ def skill_mae_chart(val):
                         "Persistence": r["persistence"]["mae"], "Climatology": r["climatology"]["mae"]}
                        for r in val["leads"]]).set_index("Lead")
     fig, ax = plt.subplots(figsize=(6.4, 3.3))
-    df.plot.bar(ax=ax, color=[ORANGE, "#5b6b95", "#2c3a5c"], width=.78, rot=0)
+    df.plot.bar(ax=ax, color=[ORANGE, TAN, "#8c7d68"], width=.78, rot=0)
     for c in ax.containers[:1]:
         ax.bar_label(c, fmt="%.2f", fontsize=8, color=INK, padding=2)
     ax.set_ylabel("Mean absolute error (°C)")
@@ -154,7 +156,9 @@ def region_mae_chart(val, regions):
 def season_heatmap(report):
     df = pd.DataFrame(report["season_table"]).set_index("name").drop(columns="region")
     fig, ax = plt.subplots(figsize=(6.6, 3.6))
-    sns.heatmap(df, annot=True, fmt=".1f", cmap="YlOrRd", linewidths=2, linecolor=PANEL,
+    vintage = matplotlib.colors.LinearSegmentedColormap.from_list(
+        "almanac", ["#4f7a8a", "#c9c58f", "#e2c46b", "#c0661d", "#8e2a1e"])
+    sns.heatmap(df, annot=True, fmt=".1f", cmap=vintage, linewidths=2, linecolor=PANEL,
                 cbar_kws={"label": "Mean Tmax (°C)", "shrink": .8}, ax=ax, annot_kws={"fontsize": 9})
     ax.grid(False)
     ax.set_ylabel("")
@@ -183,7 +187,7 @@ def heatwave_days_chart(report):
     df = pd.concat(frames, axis=1)
     national = df.mean(axis=1)
     fig, ax = plt.subplots(figsize=(13, 3.6))
-    ax.bar(national.index, national.values, color=[RED if v >= national.quantile(.8) else "#c4561c"
+    ax.bar(national.index, national.values, color=[RED if v >= national.quantile(.8) else OCHRE
                                                    for v in national.values], width=.75)
     slope, intercept = np.polyfit(national.index.values.astype(float), national.values, 1)
     ax.plot(national.index, slope * national.index.values + intercept, color=INK, lw=1.4, ls="--",

@@ -16,10 +16,11 @@ KX = K * math.cos(math.radians(22))  # equirectangular correction at India's mid
 LABELLED = {"WS103", "WS102", "WS104", "WS105", "WS106", "WS107", "WS108", "WS109", "WS110", "WS112",
             "WS101", "WS134", "WS132", "WS138", "WS125", "WS119", "WS123", "WS143"}
 
-TEMP_STOPS = [(15, "#3b2c97"), (20, "#2f6fd0"), (25, "#36b6e0"), (29, "#6fdc8c"), (33, "#e6e94a"),
-              (36, "#ffc23d"), (39, "#ff8c1a"), (42, "#e8352b"), (45, "#9c1020"), (48, "#4d0610")]
-ANOM_STOPS = [(-6, "#2f6fd0"), (-3, "#6fb8e8"), (0, "#e9edf2"), (2.5, "#ffd166"), (4.5, "#ff8c1a"),
-              (6.5, "#e8352b"), (9, "#7a0a16")]
+# period colour ramps: prussian blue -> sage -> ochre -> terracotta -> oxblood
+TEMP_STOPS = [(15, "#2f4f6f"), (20, "#4f7a8a"), (25, "#8fae9a"), (29, "#c9c58f"), (33, "#e2c46b"),
+              (36, "#d99a45"), (39, "#c0661d"), (42, "#a8431f"), (45, "#8e2a1e"), (48, "#5a1712")]
+ANOM_STOPS = [(-6, "#2f4f6f"), (-3, "#7f9fb0"), (0, "#efe6d2"), (2.5, "#e2c46b"), (4.5, "#c0661d"),
+              (6.5, "#8e2a1e"), (9, "#4f1410")]
 
 
 def _rgb(h):
@@ -51,10 +52,10 @@ def impact_colour(p):
     if p is None:
         return None
     if p >= 0.6:
-        return "#ff6a00"
+        return "#a8431f"
     if p >= 0.3:
-        return "#f4c430"
-    return "#1b2846"
+        return "#d9a441"
+    return "#ebe2cd"
 
 
 def gradient_css(stops):
@@ -96,9 +97,9 @@ def render_map(snapshot, cells, cell_regions, field="tmax", lead=0, region="ALL"
             side = max(x1 - x0, (y1 - y0) * 0.9)
             view = (x0, y0, side, (y1 - y0))
 
-    out = [f'<svg id="map" viewBox="{view[0]:.0f} {view[1]:.0f} {view[2]:.0f} {view[3]:.0f}" '
+    out = [f'<svg id="map" data-lon0="{LON0}" data-lat1="{LAT1}" data-kx="{KX:.4f}" data-k="{K}" viewBox="{view[0]:.0f} {view[1]:.0f} {view[2]:.0f} {view[3]:.0f}" '
            f'preserveAspectRatio="xMidYMid meet" role="img" aria-label="Gridded map of {e(FIELDS[field][0])}">']
-    out.append(f'<rect x="0" y="0" width="{w:.0f}" height="{h:.0f}" fill="#0b1324"/>')
+    out.append(f'<rect class="bg" x="0" y="0" width="{w:.0f}" height="{h:.0f}"/>')
     # graticule
     for lon in range(70, 99, 5):
         x = px(LAT0, lon)[0]
@@ -136,6 +137,8 @@ def render_map(snapshot, cells, cell_regions, field="tmax", lead=0, region="ALL"
         ring = ""
         if (row.get("hotspot_z") or 0) >= 1.96:
             ring = f'<circle cx="{x:.1f}" cy="{y:.1f}" r="11" class="hs"/>'
+        if lvl == "RED" and lead == 0:
+            ring += f'<circle cx="{x:.1f}" cy="{y:.1f}" r="7" class="pulse"/>'
         out.append(
             f'<a href="{e(url("/station/" + st["id"], **params))}" class="stn" data-tip="{e(tip)}">'
             f'{ring}<circle cx="{x:.1f}" cy="{y:.1f}" r="5.6" fill="{LEVEL_COLOURS[lvl]}" class="dot"/>'
@@ -148,9 +151,9 @@ def render_map(snapshot, cells, cell_regions, field="tmax", lead=0, region="ALL"
 
 def legend(field):
     if field == "watch":
-        return ('<div class="legend"><span class="sw"><i style="background:#ff6a00"></i>Probable heatwave (≥60%)</span>'
-                '<span class="sw"><i style="background:#f4c430"></i>Heat watch (30–60%)</span>'
-                '<span class="sw"><i style="background:#1b2846;border:1px solid #2c3a5c"></i>No alert</span>'
+        return ('<div class="legend"><span class="sw"><i style="background:#a8431f"></i>Probable heatwave (≥60%)</span>'
+                '<span class="sw"><i style="background:#d9a441"></i>Heat watch (30–60%)</span>'
+                '<span class="sw"><i style="background:#ebe2cd;border:1px solid #bfae8b"></i>No alert</span>'
                 + _station_legend() + '</div>')
     stops = TEMP_STOPS if field == "tmax" else ANOM_STOPS
     label = "Tmax °C" if field == "tmax" else "Departure °C"

@@ -145,9 +145,18 @@ def watch_page(p, partial=False):
     model_txt = (f"Tomorrow's anomaly = {w1[0]:.2f} × today's anomaly {w1[1]:+.2f} × change since yesterday "
                  f"{w1[2]:+.2f} × regional anomaly {w1[3]:+.2f}" if w1 else e(model.get("model", "")))
 
+    prev = eng.previous_day(snap)
+    moves = eng.transitions(prev, snap) if prev else []
+    feed = feed_html(moves, base) if prev else '<p class="small muted">Day-over-day changes appear in replay and simulated modes.</p>'
+    toast_data = json.dumps([{"city": m["city"], "from": m["from"], "to": m["to"], "up": m["up"]} for m in moves[:4]])
+    changes = f"{len(moves)} level change{'' if len(moves) == 1 else 's'}"
+    feed_card = card(f'<ul class="feed" data-transitions="{e(toast_data)}">{feed}</ul>', "Since yesterday", changes)
+
     live = f"""
+<span hidden data-pill-text="{e(mode_label(snap))}"></span>
 {data_controls(p, snap, "/", keep)}
 {notes_html(snap)}
+{ticker_html(snap, base)}
 <div class="watch-layout">
   <section class="card map-card">
     <div class="map-head">
@@ -159,18 +168,19 @@ def watch_page(p, partial=False):
       <div class="row">{region_form}</div>
     </div>
     <div class="map-tools row">{lead_seg}{field_seg}</div>
-    <div class="map-wrap">{map_svg}</div>
+    <div class="map-wrap scanning"><div class="scan"></div>{map_svg}<div class="readout" hidden></div></div>
     {legend(p.field)}
     <div class="map-note">0.5° grid interpolated (inverse-distance weighting) from 50 stations, twice as fine as IMD's
     gridded Tmax data. Click a station for its forecast and advisories. Not a political map.</div>
   </section>
   <aside class="stack">
-    {card(f'<div class="kpis">{kpi(lv["RED"], "Red · act", "red")}{kpi(lv["ORANGE"], "Orange · prepare", "orange")}'
-          f'{kpi(lv["YELLOW"], "Yellow · watch", "yellow")}{kpi(lv["GREEN"], "Green · normal", "green")}</div>',
+    {card(f'<div class="kpis">{kpi(lv["RED"], "Red", "red")}{kpi(lv["ORANGE"], "Orange", "orange")}'
+          f'{kpi(lv["YELLOW"], "Yellow", "yellow")}{kpi(lv["GREEN"], "Green", "green")}</div>',
           "Alert levels", "50 stations")}
     {card(f'<div class="stats">{stat("Mean Tmax", fmt(s["mean_tmax"], 1, "°"))}{stat("Highest Tmax", fmt(s["max_tmax"], 1, "°"))}'
           f'{stat("Peak heat index", fmt(s["max_heat_index"], 1, "°"))}{stat("Gi* hotspots", s["hotspots"])}</div>',
           "National picture")}
+    {feed_card}
     {card(f'<div class="list">{hottest}</div>', "Hottest stations", "observed Tmax")}
     {card(f'<div class="list">{anomalous}</div>', "Furthest above normal", "departure")}
   </aside>
@@ -180,21 +190,76 @@ def watch_page(p, partial=False):
 {card(f'<p class="small muted">{model_txt}. Retrained this morning on {model.get("training_samples", {}).get(1, "–")} '
       f'station-days from all 50 stations; separate weights for each lead day. '
       f'<a href="/skill">See how well it performed in 2024 →</a></p>', "Today's forecasting model", "explainable", "mt")}
+<p class="tiny muted mt">Keyboard: <span class="kbd">←</span> <span class="kbd">→</span> step a day ·
+<span class="kbd">Space</span> play / pause · <span class="kbd">1</span>–<span class="kbd">5</span> forecast day ·
+<span class="kbd">0</span> observed</p>
 """
     if partial:
         return live
-    hero = f"""
-<div class="hero-strip">
+    hero = f"""{boot_screen(eng)}
+<div class="lead-in">
   <div>
-    <div class="eyebrow">Heatwave monitoring · prediction · early warning</div>
+    <div class="eyebrow">Heatwave monitoring, prediction and early warning</div>
     <h1>India Heatwave Watch</h1>
-    <p>Live and replayed maximum temperatures from 50 stations, AI forecasts up to five days ahead, IMD severity
-    classes, statistically tested hotspots and stakeholder advisories. Press <b>Play</b> to watch the real
-    May&nbsp;2024 heatwave build across North India.</p>
+    <p>Maximum temperatures from 50 stations, forecasts up to five days ahead, IMD severity classes,
+    statistically tested hotspots and advisories for the people who need them. Press <b>Play</b> to watch the
+    real May&nbsp;2024 heatwave build across North India.</p>
   </div>
-  <div class="hero-logo">{logo_svg(0.62)}</div>
+  <div class="hero-logo">{logo_svg()}</div>
 </div>"""
     return page("Heatwave Watch", hero + f'<div id="live" data-partial="/">{live}</div>', "/", mode_label(snap), snap["mode"])
+
+
+def ticker_html(snap, base):
+    rows = sorted((r for r in snap["stations"] if r["alert"]["level"] in ("RED", "ORANGE")),
+                  key=lambda r: r["alert"]["score"], reverse=True)
+    if not rows:
+        items = [f'<span class="item">No heat warnings in force · national mean Tmax {fmt(snap["summary"]["mean_tmax"])} °C · '
+                 f'all 50 stations reporting</span>']
+    else:
+        items = [f'<a class="item" href="{e(url("/station/" + r["station"]["id"], **base))}" style="color:inherit">'
+                 f'<b style="color:{LEVEL_COLOURS[r["alert"]["level"]]}">{r["alert"]["level"]}</b> '
+                 f'{e(r["station"]["city"])} {fmt(r["obs"]["tmax"])} °C · {e(r["category"].title())} · '
+                 f'heatwave chance {pct(max(f["p_heatwave"] for f in r["forecast"][:3]))} next 72 h</a>' for r in rows]
+    track = "".join(items) * 2  # duplicated so the marquee loops seamlessly
+    label = "WARNINGS" if rows else "ALL CLEAR"
+    return f'<div class="ticker"><span class="tag">{label}</span><div class="track">{track}</div></div>'
+
+
+def feed_html(moves, base):
+    if not moves:
+        return '<li><span>·</span><span class="muted">No alert levels changed since yesterday.</span></li>'
+    return "".join(
+        f'<li><span class="{"up" if m["up"] else "down"}">{"▲" if m["up"] else "▼"}</span>'
+        f'<span><a href="{e(url("/station/" + m["id"], **base))}" style="color:inherit"><b>{e(m["city"])}</b></a> '
+        f'{m["from"].title()} → <b style="color:{LEVEL_COLOURS[m["to"]]}">{m["to"].title()}</b> '
+        f'<span class="muted small">{fmt(m["tmax_from"])} → {fmt(m["tmax_to"])} °C</span></span></li>'
+        for m in moves[:8])
+
+
+def boot_screen(eng):
+    b = eng.boot_report()
+    steps = [
+        ("Connecting to automatic weather stations", f'{b["stations"]} online'),
+        ("Loading 30-year climatology", b["clim_years"]),
+        ("Segmenting IMD homogeneous regions", f'{b["regions"]} regions'),
+        ("Building the 0.5° interpolation grid", f'{b["cells"]:,} cells'),
+        ("Training the regional ridge forecaster", f'{b["samples"]} samples'),
+        ("Testing Getis-Ord Gi* hotspots", f'{b["hotspots"]} found'),
+        ("Early warning engine", f'{b["red"]} RED alerts'),
+    ]
+    items = "".join(f'<li><span class="ok">✓</span><span>{e(t)}</span><span class="val">{e(v)}</span></li>' for t, v in steps)
+    return f"""<div class="boot" id="boot" hidden>
+  <canvas id="embers"></canvas>
+  <button class="skip" type="button" data-skip>Skip intro</button>
+  <div class="inner">
+    <div class="logo">{logo_svg()}</div>
+    <h1>Initialising the heat watch… pipeline computed in {b["compute_ms"]:.0f} ms</h1>
+    <ol>{items}</ol>
+    <div class="progress"><i></i></div>
+    <button class="btn primary enter" type="button" data-enter>ENTER THE HEAT WATCH</button>
+  </div>
+</div>"""
 
 
 # ---------------------------------------------------------------- Station
@@ -386,6 +451,72 @@ heat index, humid heat and persistence. Open a station to review and approve its
       "How alerts are decided", "weights")}
 </div>"""
     return page("Early Warnings", body, "/warnings", mode_label(snap), snap["mode"])
+
+
+# ---------------------------------------------------------------- Scenario lab
+def scenarios_page(p):
+    from ..scenarios import SCENARIOS
+
+    eng = engine()
+    key = (p.query.get("s") or ["heat_dome"])[0]
+    if key not in SCENARIOS:
+        key = "heat_dome"
+    scenario = SCENARIOS[key]
+    base_snap = eng.snapshot(p.mode, p.date)
+    snap = eng.scenario_snapshot(key, p.mode, p.date)
+    base = p.base(snap["as_of"])
+    moves = eng.transitions(base_snap, snap)
+    affected = {st.station_id for st in eng.stations if scenario.affects(st)}
+
+    cards = "".join(
+        f'<a class="scenario {"on" if k == key else ""}" href="{e(url("/scenarios", **base, s=k))}">'
+        f'<div class="ic">{s.icon}</div><h4>{e(s.title)}</h4><p>{e(s.summary)}</p></a>'
+        for k, s in SCENARIOS.items())
+
+    def delta(level):
+        d = snap["summary"]["levels"][level] - base_snap["summary"]["levels"][level]
+        cls = "delta-up" if (d > 0) == (level in ("RED", "ORANGE")) and d else "delta-down" if d else "muted"
+        return f'<span class="{cls}">{d:+d}</span>' if d else '<span class="muted">±0</span>'
+
+    kpis = "".join(
+        f'<div class="kpi {lvl.lower()}"><div class="v num">{snap["summary"]["levels"][lvl]}</div>'
+        f'<div class="k">{lvl.title()} · was {base_snap["summary"]["levels"][lvl]} ({delta(lvl)})</div></div>'
+        for lvl in ("RED", "ORANGE", "YELLOW", "GREEN"))
+    rows, links = [], []
+    for m in moves:
+        direct = m["id"] in affected
+        rows.append([f'<b>{e(m["city"])}</b>', badge(m["from"]), "→", badge(m["to"]),
+                     f'{m["score_from"]:.0f} → <b>{m["score_to"]:.0f}</b>',
+                     f'{fmt(m["tmax_from"])} → {fmt(m["tmax_to"])}',
+                     "Directly affected" if direct else '<span class="muted">Indirect: model retrained on new data</span>'])
+        links.append(url("/station/" + m["id"], **base))
+    tbl = (table([("Station", ""), ("Before", ""), ("", ""), ("After", ""), ("Risk score", ""), ("Tmax °C", ""), ("Why", "")],
+                 rows, "", links) if rows else '<p class="muted">No station changed alert level in this scenario.</p>')
+    map_svg = render_map(snap, eng.grid.cells, eng.grid.cell_regions(), "tmax", 0, "ALL", base)
+    body = f"""
+<div class="page-head"><div class="eyebrow">What-if stress testing</div><h1>Scenario Lab</h1>
+<p>Inject a weather scenario into the {e(MODE_LABELS[snap["mode"]])} data for {e(nice_date(snap["as_of"]))}. The full pipeline
+(forecaster, IMD severity, hotspots and early warnings) re-runs on the perturbed copy, so you can see how the warning
+system would respond before the weather arrives. The real data is never changed.</p></div>
+{data_controls(p, base_snap, "/scenarios", {"s": key})}
+<div class="scenarios">{cards}</div>
+<div class="grid cols-main mt">
+  <section class="card map-card"><div class="map-head"><div><h2>{e(scenario.title)}: maximum temperature</h2>
+  <div class="meta">{len(affected)} stations perturbed · pipeline re-run in <b>{snap["compute_ms"]:.0f} ms</b></div></div></div>
+  <div class="map-wrap scanning"><div class="scan"></div>{map_svg}<div class="readout" hidden></div></div>{legend("tmax")}</section>
+  <div class="stack">
+    {card(f'<div class="kpis">{kpis}</div>', "Alert levels after the scenario", "change vs. baseline")}
+    {card(f'<div class="stats">{stat("Stations changing level", len(moves))}'
+          f'{stat("Escalations", sum(1 for m in moves if m["up"]))}{stat("De-escalations", sum(1 for m in moves if not m["up"]))}'
+          f'{stat("Highest Tmax", fmt(snap["summary"]["max_tmax"], 1, "°"))}</div>', "Engine response")}
+    {card('<p class="small">The forecaster is pooled across all stations, so a scenario in one region can shift forecasts '
+          'elsewhere a little. Those changes are marked <i>indirect</i>. It is a useful reminder that a shared model couples '
+          'the regions together.</p>', "Reading the result")}
+  </div>
+</div>
+{card(tbl, "Stations that changed alert level", f"{len(moves)} change(s)", "mt")}
+"""
+    return page("Scenario Lab", body, "/scenarios", mode_label(snap), snap["mode"])
 
 
 # ---------------------------------------------------------------- Forecast skill
@@ -609,11 +740,11 @@ def about_page(p):
     gov_tbl = table([("Area", ""), ("Relevance", ""), ("How Tapmaan handles it", "")],
                     [[f"<b>{e(a)}</b>", e(r), f'<span class="small">{e(t)}</span>'] for a, r, t in gov])
     body = f"""
-<div class="hero-strip"><div><div class="eyebrow">About the project</div><h1>Tapmaan · तापमान</h1>
+<div class="lead-in"><div><div class="eyebrow">About the project</div><h1>Tapmaan · तापमान</h1>
 <p>A heatwave intelligence platform for India built around use case KJS-CES-01, <i>Climate Intelligence for
 Heatwave Monitoring, Prediction, and Early Warning</i> (collaborating organisation: India Meteorological Department,
 Mumbai-Pune). It turns raw temperature data into forecasts, severity levels, hotspots and advisories that people can act on.</p></div>
-<div class="hero-logo">{logo_svg(0.62)}</div></div>
+<div class="hero-logo">{logo_svg()}</div></div>
 <div class="grid cols-main">
   {card(f'<div class="layers">{layer_html}</div>', "Five-layer architecture", "mirrors the use-case conceptual schema")}
   <div class="stack">

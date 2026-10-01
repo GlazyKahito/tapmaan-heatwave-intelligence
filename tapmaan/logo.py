@@ -28,7 +28,7 @@ def logo_commands():
         ("create_oval", (cx - 46, cy - 46, cx + 46, cy + 46), {"fill": "#ffc845", "outline": ""}),
         # warning gauge around the sun (create_arc)
         ("create_arc", (cx - 104, cy - 104, cx + 104, cy + 104),
-         {"start": 200, "extent": 140, "style": "arc", "outline": "#e8352b", "width": 5}),
+         {"start": 20, "extent": 140, "style": "arc", "outline": "#e8352b", "width": 5}),
         # thermometer: tube, mercury, bulb
         ("create_rectangle", (cx - 9, cy - 44, cx + 9, cy + 30), {"fill": "#fff7e6", "outline": "#0b1020", "width": 2}),
         ("create_rectangle", (cx - 4, cy - 20, cx + 4, cy + 32), {"fill": "#e8352b", "outline": ""}),
@@ -78,10 +78,28 @@ def _svg_attrs(opts, shape=True):
     return attrs
 
 
-def to_svg(scale=1.0, css_class="logo"):
+# The website prints the logo in vintage inks; the Tkinter console keeps the original night palette.
+VINTAGE = {"#0b1020": None, "#ff8c1a": "#c0661d", "#ffc845": "#d9a441", "#e8352b": "#8e2a1e",
+           "#fff7e6": "#f8f1e1", "#ffffff": "#2b2420", "#ffb347": "#a8431f", "#2a3450": "#bfae8b",
+           "#9aa4c0": "#7d7062"}
+
+
+def _recolour(options, palette):
+    out = dict(options)
+    for key in ("fill", "outline"):
+        if out.get(key) in palette:
+            out[key] = palette[out[key]] or ""
+    return out
+
+
+def to_svg(scale=1.0, css_class="logo", vintage=True):
     """Translate the Tkinter canvas commands into an SVG document string."""
-    parts = []
+    parts, rays = [], []
     for method, c, o in logo_commands():
+        if vintage:
+            if method == "create_rectangle" and o.get("fill") == "#0b1020":
+                continue  # transparent background on paper
+            o = _recolour(o, VINTAGE)
         if method == "create_rectangle":
             x0, y0, x1, y1 = c
             parts.append(f'<rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}" {_svg_attrs(o)}/>')
@@ -91,7 +109,7 @@ def to_svg(scale=1.0, css_class="logo"):
                          f'ry="{(y1 - y0) / 2}" {_svg_attrs(o)}/>')
         elif method == "create_polygon":
             pts = " ".join(f"{c[i]},{c[i + 1]}" for i in range(0, len(c), 2))
-            parts.append(f'<polygon points="{pts}" {_svg_attrs(o)}/>')
+            rays.append(f'<polygon points="{pts}" {_svg_attrs(o)}/>')
         elif method == "create_line":
             pts = [(c[i], c[i + 1]) for i in range(0, len(c), 2)]
             if o.get("smooth") and len(pts) > 2:
@@ -119,9 +137,10 @@ def to_svg(scale=1.0, css_class="logo"):
         elif method == "create_text":
             family, size, weight = o.get("font", ("Helvetica", 12, "normal"))
             parts.append(f'<text x="{c[0]}" y="{c[1]}" fill="{o.get("fill", "#000")}" text-anchor="middle" '
-                         f'dominant-baseline="central" font-family="Space Grotesk, {family}, sans-serif" '
+                         f'dominant-baseline="central" font-family="Libre Caslon Text, Georgia, serif" '
                          f'font-size="{size * 1.333:.1f}" font-weight="{"700" if weight == "bold" else "400"}">'
                          f'{o.get("text", "")}</text>')
+    parts.insert(0, f'<g class="ray">{"".join(rays)}</g>')
     w, h = WIDTH * scale, HEIGHT * scale
     return (f'<svg class="{css_class}" viewBox="0 0 {WIDTH} {HEIGHT}" width="{w:.0f}" height="{h:.0f}" '
             f'xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Tapmaan logo">{"".join(parts)}</svg>')

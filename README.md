@@ -40,6 +40,11 @@ It runs in two forms on one Python core:
   counting, plus a formatted bulletin.
 * **IoT AWS network simulator.** Temperature, humidity and wind threads poll the stations concurrently over a lossy link.
   Timeouts, missing packets and impossible values are caught per reading and shown on a thread timeline.
+* **Scenario Lab.** Inject a heat dome, monsoon onset, humidity surge or urban heat island and watch the
+  warning system react: escalations, de-escalations, and direct versus indirect (model-coupled) effects.
+* **Start-up sequence and live touches.** The start-up screen reports real pipeline numbers. The site also has
+  an IST clock, an alert ticker, a "since yesterday" feed with escalation toasts during Play, a scan sweep on
+  the map, a coordinate readout and keyboard control.
 * **Data Explorer.** The snapshot is loaded into SQLite. Saved queries cover JOIN, GROUP BY, HAVING and more, and
   a guarded editor allows SELECT only.
 
@@ -71,6 +76,7 @@ The five layers mirror the use-case conceptual schema.
  4  VALIDATION         validation.py    walk-forward backtest · MAE/RMSE/bias · POD/FAR/CSI/Brier
  5  DECISION SUPPORT   advisories.py    stakeholder advisors · fact checker · SMS/bulletin channels
                        engine.py        HeatwaveIntelligence facade that runs the pipeline
+                       scenarios.py     what-if scenarios (Scenario ABC -> four concrete scenarios)
     INTERFACES         webui/           Python-rendered pages, SVG map, Matplotlib/Seaborn charts
                        web.py           router (pages + JSON API) · api/index.py (Vercel handler)
                        desktop.py       Tkinter Heatwave Operations Console
@@ -146,6 +152,7 @@ python scripts/build_datasets.py
 | **Heatwave Watch** | Gridded map (Tmax, departure, heatwave-watch probability), observed or day 1–5 forecast, national or regional zoom, alert counts, hottest and most anomalous stations, region cards, today's model weights |
 | **Station** | 14-day history and 5-day forecast with 80 % interval and verification, "Why this alert?", outlook table, four stakeholder advisories with approve/reject, SMS in three languages, bulletin, seasonal cycle |
 | **Early Warnings** | Every station ranked by risk score, filters by level and region, generated national bulletin, approval queue |
+| **Scenario Lab** | What-if stress tests (heat dome, monsoon onset, humidity surge, urban heat island). The whole pipeline re-runs on a perturbed copy of the data and shows which stations escalate, and why |
 | **Forecast Skill** | Walk-forward verification against persistence and climatology, event scores, error by region |
 | **Climate Trends** | Seaborn region × season heatmap, pre-monsoon trends by region, heatwave days per year with trend |
 | **AWS Network** | Concurrent sensor sweep, Matplotlib thread timeline, exception log, threshold warnings |

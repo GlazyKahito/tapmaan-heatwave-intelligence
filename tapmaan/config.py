@@ -18,10 +18,10 @@ IMD_CRITERIA = {
 # Impact-based colour codes used in IMD warnings
 ALERT_LEVELS = ("GREEN", "YELLOW", "ORANGE", "RED")
 ALERT_META = {
-    "GREEN": {"label": "No Action", "colour": "#2fbf71", "meaning": "Normal day. No heat warning."},
-    "YELLOW": {"label": "Be Updated", "colour": "#f4c430", "meaning": "Heat watch. Stay alert, keep updated."},
-    "ORANGE": {"label": "Be Prepared", "colour": "#ff8c1a", "meaning": "Heatwave alert. Protect vulnerable groups."},
-    "RED": {"label": "Take Action", "colour": "#e8352b", "meaning": "Severe heatwave warning. Take action now."},
+    "GREEN": {"label": "No Action", "colour": "#5b7a4b", "meaning": "Normal day. No heat warning."},
+    "YELLOW": {"label": "Be Updated", "colour": "#c4962a", "meaning": "Heat watch. Stay alert, keep updated."},
+    "ORANGE": {"label": "Be Prepared", "colour": "#c0661d", "meaning": "Heatwave alert. Protect vulnerable groups."},
+    "RED": {"label": "Take Action", "colour": "#8e2a1e", "meaning": "Severe heatwave warning. Take action now."},
 }
 
 # Early warning engine: score weights (sum = 1.0)

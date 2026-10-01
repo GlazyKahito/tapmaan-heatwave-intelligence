@@ -8,3 +8,5 @@ venv/
 .DS_Store
 Thumbs.db
 .playwright-mcp/
+
+.vercel

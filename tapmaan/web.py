@@ -67,7 +67,7 @@ def route(method, raw_path, body=b""):
         if path.startswith("/station/"):
             html = pages.station_page(p, path.split("/")[2])
             return _html(200, html, cache) if html else _html(404, pages.not_found_page())
-        simple = {"/warnings": pages.warnings_page, "/skill": pages.skill_page, "/climate": pages.climate_page,
+        simple = {"/warnings": pages.warnings_page, "/scenarios": pages.scenarios_page, "/skill": pages.skill_page, "/climate": pages.climate_page,
                   "/aws": pages.aws_page, "/data": pages.data_page, "/about": pages.about_page}
         if path in simple:
             no_cache = path in ("/aws", "/data")

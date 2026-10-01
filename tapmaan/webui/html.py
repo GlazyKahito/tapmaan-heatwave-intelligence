@@ -12,6 +12,7 @@ from ..logo import to_svg
 NAV = [
     ("/", "Heatwave Watch"),
     ("/warnings", "Early Warnings"),
+    ("/scenarios", "Scenario Lab"),
     ("/skill", "Forecast Skill"),
     ("/climate", "Climate Trends"),
     ("/aws", "AWS Network"),
@@ -108,11 +109,11 @@ def page(title, body, active="/", mode_label="", mode="replay", description=""):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{e(title)} · {APP_NAME}</title>
 <meta name="description" content="{e(desc)}">
-<meta name="theme-color" content="#0a0f1c">
+<meta name="theme-color" content="#f3ead7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Source+Sans+3:wght@400;600;700&family=Courier+Prime&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
@@ -122,16 +123,20 @@ def page(title, body, active="/", mode_label="", mode="replay", description=""):
     <span class="brand-text"><b>{APP_NAME}</b><small>{APP_TAGLINE}</small></span>
   </a>
   <nav class="nav">{nav}</nav>
-  <div class="{pill_cls}" title="Data source"><span class="dot"></span>{e(mode_label)}</div>
+  <div class="clock" title="Indian Standard Time">
+    <b data-clock>--:--:-- IST</b>
+    <span><span class="{pill_cls}" data-pill><span class="dot"></span>{e(mode_label)}</span></span>
+  </div>
 </header>
-<main class="view fade-in" id="main">
+<main class="view" id="main">
 {body}
 </main>
 <footer class="footer">
-  <span>{APP_NAME} · {USE_CASE_ID} Climate Intelligence for Heatwave Monitoring, Prediction &amp; Early Warning · rendered by Python</span>
+  <span>{APP_NAME} · {USE_CASE_ID} Climate Intelligence for Heatwave Monitoring, Prediction &amp; Early Warning · <a href="/?intro=1">replay intro</a></span>
   <span>Research prototype, not an official forecast. Official warnings: <a href="https://mausam.imd.gov.in" target="_blank" rel="noopener">mausam.imd.gov.in</a></span>
 </footer>
 <div id="tooltip" class="tooltip" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
 <script src="/js/enhance.js" defer></script>
 </body>
 </html>"""

@@ -10,19 +10,20 @@
 
 import threading
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from . import science
 from .advisories import TemplateAdvisoryGenerator, disseminate
 from .alerts import EarlyWarningEngine, heatwave_streak
 from .analytics import RegionalClimateAnalysis, national_summary
 from .climatology import Climatology
-from .config import ALERT_META, APP_NAME, APP_TAGLINE, FORECAST_HORIZON, LIVE_CACHE_SECONDS, USE_CASE_ID
+from .config import ALERT_LEVELS, ALERT_META, APP_NAME, APP_TAGLINE, FORECAST_HORIZON, LIVE_CACHE_SECONDS, USE_CASE_ID
 from .exceptions import DataSourceError
 from .forecast import fit_pooled, forecast_station
 from .models import StationRegistry
 from .providers import (IST, LiveProvider, ReplayProvider, ResilientProvider, SimulatedProvider,
                         describe_weather)
+from .scenarios import SCENARIOS
 from .spatial import GridInterpolator, HotspotDetector, region_summary
 from .stations_data import REGIONS, SEASONS
 from .validation import ForecastValidator
@@ -124,6 +125,15 @@ class HeatwaveIntelligence:
             notes = list(getattr(provider, "notes", []))
         except DataSourceError as err:
             feeds, notes = self.simulated.fetch(self.registry, as_of), [f"{err}. Showing simulated data."]
+        snap = self._build(feeds, notes, mode, provider.label, as_of, t0)
+        with self._lock:
+            if len(self._cache) > 40:
+                self._cache.clear()
+            self._cache[key] = (time.time(), snap)
+        return snap
+
+    def _build(self, feeds, notes, mode, source, as_of, t0):
+        """Run layers 2-5 on a set of station feeds and assemble the snapshot dict."""
         pooled = fit_pooled(feeds, self.clim)
         rows = [self._analyse(feeds[s.station_id], pooled) for s in self.stations]
 
@@ -140,20 +150,70 @@ class HeatwaveIntelligence:
                 [round(r["forecast"][lead - 1]["tmax"] - r["forecast"][lead - 1]["normal"], 1) for r in rows])
         fields["p_0"] = self.grid.interpolate([1.0 if r["category"] != "NORMAL" else
                                                (0.5 if r["anomaly"] and r["anomaly"] > 2.5 else 0.0) for r in rows])
-
-        snap = {
-            "mode": mode, "source": provider.label, "as_of": as_of.isoformat(),
+        return {
+            "mode": mode, "source": source, "as_of": as_of.isoformat(),
             "generated_at": datetime.now(IST).strftime("%Y-%m-%d %H:%M IST"),
             "notes": notes, "model": pooled.describe() if pooled else {"model": "Per-station fallback"},
             "stations": rows, "regions": region_summary(rows),
             "summary": national_summary(rows), "grid": fields,
             "compute_ms": round((time.perf_counter() - t0) * 1000, 1),
         }
+
+    def scenario_snapshot(self, scenario_key, mode="replay", date_str=None):
+        """Re-run the whole pipeline on feeds perturbed by a what-if scenario."""
+        mode, provider, as_of = self.resolve(mode, date_str)
+        key = ("scenario", scenario_key, mode, as_of.isoformat())
         with self._lock:
-            if len(self._cache) > 40:
-                self._cache.clear()
+            hit = self._cache.get(key)
+            if hit and time.time() - hit[0] < LIVE_CACHE_SECONDS:
+                return hit[1]
+        t0 = time.perf_counter()
+        scenario = SCENARIOS[scenario_key]
+        try:
+            feeds = provider.fetch(self.registry, as_of)
+        except DataSourceError:
+            feeds = self.simulated.fetch(self.registry, as_of)
+        snap = self._build(scenario.apply(feeds), [], mode, provider.label, as_of, t0)
+        with self._lock:
             self._cache[key] = (time.time(), snap)
         return snap
+
+    @staticmethod
+    def transitions(before, after):
+        """Alert-level changes between two snapshots, most severe escalations first."""
+        old = {r["station"]["id"]: r for r in before["stations"]}
+        out = []
+        for r in after["stations"]:
+            prev = old.get(r["station"]["id"])
+            if prev is None or prev["alert"]["level"] == r["alert"]["level"]:
+                continue
+            a, b = ALERT_LEVELS.index(prev["alert"]["level"]), ALERT_LEVELS.index(r["alert"]["level"])
+            out.append({"id": r["station"]["id"], "city": r["station"]["city"], "from": prev["alert"]["level"],
+                        "to": r["alert"]["level"], "up": b > a, "jump": b - a,
+                        "score_from": prev["alert"]["score"], "score_to": r["alert"]["score"],
+                        "tmax_from": prev["obs"]["tmax"], "tmax_to": r["obs"]["tmax"]})
+        return sorted(out, key=lambda t: (-t["jump"], -t["score_to"]))
+
+    def previous_day(self, snap):
+        """Snapshot for the day before (replay / simulated only)."""
+        if snap["mode"] == "live":
+            return None
+        prev = date.fromisoformat(snap["as_of"]) - timedelta(days=1)
+        if snap["mode"] == "replay" and prev.isoformat() < self.replay.date_range[0]:
+            return None
+        return self.snapshot(snap["mode"], prev.isoformat())
+
+    def boot_report(self):
+        """Real numbers for the start-up sequence shown on the landing screen."""
+        snap = self.snapshot("replay")
+        model = snap["model"]
+        return {
+            "stations": len(self.stations), "regions": len(REGIONS), "cells": len(self.grid.cells),
+            "clim_years": f"{self.clim.period[0][:4]}-{self.clim.period[1][:4]}",
+            "samples": model.get("training_samples", {}).get(1, 0),
+            "hotspots": snap["summary"]["hotspots"], "red": snap["summary"]["levels"]["RED"],
+            "compute_ms": snap["compute_ms"],
+        }
 
     def station_detail(self, station_id, mode="replay", date_str=None):
         st = self.registry.get(station_id)
