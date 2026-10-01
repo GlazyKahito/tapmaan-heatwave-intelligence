@@ -1,0 +1,7 @@
+tests/
+scripts/
+docs/
+desktop.py
+server.py
+__pycache__/
+.pytest_cache/

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/((?!css/|js/|favicon\\.svg).*)", "destination": "/api/index?__path=$1" }
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "memory": 1024,
+      "excludeFiles": "{tests/**,scripts/**,docs/**,desktop.py,server.py,**/__pycache__/**}"
+    }
+  }
+}
